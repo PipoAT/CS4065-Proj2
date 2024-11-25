@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Bulletin Board</title>
+</head>
+<body>
+    <h1>Welcome to the Bulletin Board</h1>
+    <form method="POST" action="{{ url_for('login') }}">
+        <label for="username">Enter your name to continue:</label><br>
+        <input type="text" id="username" name="username" required><br><br>
+        <button type="submit">Log In</button>
+    </form>
+</body>
+</html>
