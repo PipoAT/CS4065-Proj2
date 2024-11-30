@@ -25,6 +25,16 @@ python client.py
 ```
 The client will connect to the server at http://localhost:8080, send requests, and handle the server's responses.
 ---
+## How To Utilize the GUI
+### Step 1: Enter the Server Address and Port, and click "Connect"
+### Step 2: Enter the Username, and click "Join"
+### Step 3: You can perform any of the actions below:
+#### - To Send a Message, Enter the Subject and Message, and click "Post"
+#### - To View All Users, click "Get Users"
+#### - To Leave the Chat, click "Leave"
+#### - To Exit the GUI, click "Exit"
+---
+
 
 ## How To Use The Client Code 
 ### Step 1: Connect to The Server

@@ -138,7 +138,7 @@ def handle_server_console():
 def start_server():
     # Start the server to listen for incoming connections
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(('localhost', 8080))
+    server.bind(('localhost', 5050))
     server.listen(5)
     print("Server started on port 8080...")
 

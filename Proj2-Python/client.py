@@ -1,10 +1,12 @@
 import json
 import socket
 import threading
+import tkinter as tk
+from tkinter import scrolledtext, messagebox
 
 # Global variables
 server_url = 'localhost'  # Default server address
-server_port = 8080        # Default server port
+server_port = 5050       # Default server port
 username = ''  # Default empty username
 
 # Function to handle user input
@@ -50,12 +52,48 @@ def handle_commands():
         elif command == "%exit":
             print("Exiting the client.")
             break
+
+        elif command.command == "%groups":
+            get_groups()
+
+        elif command.command == "%groupjoin":
+            join_group_by_id()
+
+        elif command.command == "%grouppost":
+            post_to_group_by_id()
+
+        elif command.command == "%groupusers":
+            get_users_by_id()
+
+        elif command.command == "%groupleave":
+            leave_group_by_id()
+        
+        elif command.command == "%groupmessage":
+            get_message_by_id()
         
         # Invalid command handling
         else:
             print("Invalid command. Available commands: %connect, %join, %post, %users, %leave, %message, %exit.")
 
 # Command Functions
+def get_groups():
+    send_request('groups')
+
+def join_group_by_id():
+    send_request('groupjoin', group_id)
+
+def post_to_group_by_id():
+    send_request('grouppost', {'sender': username, 'subject': subject, 'body': body})
+
+def get_users_by_id():
+    send_request('groupusers')
+
+def leave_group_by_id():
+    send_request('groupleave', {'username': username})
+
+def get_message_by_id():
+    send_request('groupmessage', {'message_id': message_id})
+
 def send_request(command, data=None):
     # Create socket and send data
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
@@ -68,7 +106,7 @@ def send_request(command, data=None):
         client_socket.send(json.dumps(request_data).encode('utf-8'))
         
         response = client_socket.recv(1024).decode('utf-8')
-        print("Response:", response)
+        return response
 
 def join_group():
     global username
@@ -124,4 +162,149 @@ if __name__ == '__main__':
     listen_thread.daemon = True
     listen_thread.start()
 
-    handle_commands()
+    class ChatClientGUI:
+        def __init__(self, root):
+            self.root = root
+            self.root.title("Chat Client")
+
+            self.server_url = tk.StringVar(value='localhost')
+            self.server_port = tk.IntVar(value=5050)
+            self.username = tk.StringVar()
+
+            self.create_widgets()
+
+        def create_widgets(self):
+            # Server connection frame
+            connection_frame = tk.Frame(self.root)
+            connection_frame.pack(pady=10)
+
+            tk.Label(connection_frame, text="Server Address:").grid(row=0, column=0, padx=5)
+            tk.Entry(connection_frame, textvariable=self.server_url).grid(row=0, column=1, padx=5)
+            tk.Label(connection_frame, text="Port:").grid(row=0, column=2, padx=5)
+            tk.Entry(connection_frame, textvariable=self.server_port).grid(row=0, column=3, padx=5)
+            tk.Button(connection_frame, text="Connect", command=self.connect_to_server).grid(row=0, column=4, padx=5)
+
+            # Username frame
+            username_frame = tk.Frame(self.root)
+            username_frame.pack(pady=10)
+
+            tk.Label(username_frame, text="Username:").grid(row=0, column=0, padx=5)
+            tk.Entry(username_frame, textvariable=self.username).grid(row=0, column=1, padx=5)
+            tk.Button(username_frame, text="Join", command=self.join_group).grid(row=0, column=2, padx=5)
+
+            # Message display area
+            self.message_area = scrolledtext.ScrolledText(self.root, wrap=tk.WORD, state='disabled', width=50, height=15)
+            self.message_area.pack(pady=10)
+
+            # Message posting frame
+            post_frame = tk.Frame(self.root)
+            post_frame.pack(pady=10)
+
+            tk.Label(post_frame, text="Subject:").grid(row=0, column=0, padx=5)
+            self.subject_entry = tk.Entry(post_frame)
+            self.subject_entry.grid(row=0, column=1, padx=5)
+            tk.Label(post_frame, text="Message:").grid(row=1, column=0, padx=5)
+            self.message_entry = tk.Entry(post_frame)
+            self.message_entry.grid(row=1, column=1, padx=5)
+            tk.Button(post_frame, text="Post", command=self.post_message).grid(row=1, column=2, padx=5)
+
+            # Users and exit buttons
+            button_frame = tk.Frame(self.root)
+            button_frame.pack(pady=10)
+
+            tk.Button(button_frame, text="Get Users", command=self.get_users).grid(row=0, column=0, padx=5)
+            tk.Button(button_frame, text="Get Groups", command=self.get_groups).grid(row=0, column=1, padx=5)
+            tk.Button(button_frame, text="Get Groups", command=self.get_message_by_id).grid(row=0, column=2, padx=5)
+            tk.Button(button_frame, text="Leave", command=self.leave_group).grid(row=0, column=3, padx=5)
+            tk.Button(button_frame, text="Exit", command=self.exit_client).grid(row=0, column=4, padx=5)
+
+        def get_groups(self):
+            # Send a request to the server to get the list of groups
+            response = send_request('groups')
+
+        def get_message_by_id(self):
+            # Send a request to the server to get a message by its ID
+            message_id = input("Enter the message ID: ")
+            response = send_request('groupmessage', {'message_id': message_id})
+
+
+
+        def connect_to_server(self):
+            global server_url, server_port
+            server_url = self.server_url.get()
+            server_port = self.server_port.get()
+            self.append_message(f"Connected to server at {server_url}:{server_port}")
+
+        def join_group(self):
+            global username
+            username = self.username.get()
+            if not username:
+                messagebox.showerror("Error", "Username cannot be empty.")
+                return
+            send_request('join', {'username': username})
+            
+
+        def post_message(self):
+            subject = self.subject_entry.get()
+            body = self.message_entry.get()
+            if not username:
+                messagebox.showerror("Error", "You must join the group first.")
+                return
+            send_request('post', {'sender': username, 'subject': subject, 'body': body})
+
+        def get_users(self):
+            send_request('users')
+            response = send_request('users')
+            users = json.loads(response).get('users', [])
+            if not users:
+                messagebox.showerror("Error", "No users in the group.")
+            else:
+                messagebox.showinfo("Users", "\n".join(users))
+
+        def leave_group(self):
+            global username
+            if not username:
+                messagebox.showerror("Error", "You must join the group first.")
+                return
+            send_request('leave', {'username': username})
+            username = ''
+            self.append_message("You have left the group.")
+
+        def exit_client(self):
+            self.root.quit()
+
+        def append_message(self, message):
+            self.message_area.config(state='normal')
+            self.message_area.insert(tk.END, message + '\n')
+            self.message_area.config(state='disabled')
+
+        def gui_listen_for_messages(self):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+                client_socket.connect((server_url, server_port))
+
+                while True:
+                    response = client_socket.recv(1024).decode('utf-8')
+                    if not response:
+                        break
+
+                    response_data = json.loads(response)
+                    if response_data.get('status') == 'new_message':
+                        message = response_data.get('message')
+                        gui.append_message(f"\nNew Message:\nFrom: {message['sender']}\nSubject: {message['subject']}\nDate: {message['date']}\nBody: {message['body']}\n")
+                    else:
+                        gui.append_message("Response: " + str(response_data))
+
+    if __name__ == '__main__':
+        print("Select preferred client interface: GUI/CLI")
+        command = input().strip().lower()
+        if command == "cli":
+            handle_commands()
+        else: 
+            root = tk.Tk()
+            gui = ChatClientGUI(root)
+
+            listen_thread = threading.Thread(target=gui.gui_listen_for_messages)
+            listen_thread.daemon = True
+            listen_thread.start()
+
+            root.mainloop()
