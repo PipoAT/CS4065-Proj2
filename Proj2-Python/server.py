@@ -8,6 +8,12 @@ users = []  # List of currently connected users
 messages = []  # List of posted messages
 clients = []  # List of active client connections
 
+groups = [
+        {'group_id': 1, 'group_name': 'Group1'},
+        {'group_id': 2, 'group_name': 'Group2'},
+        {'group_id': 3, 'group_name': 'Group3'}
+    ]
+
 # Message class to structure messages
 class Message:
     def __init__(self, sender, subject, body):
@@ -90,7 +96,22 @@ def handle_client(client_socket, client_address):
             client_socket.send(json.dumps({'status': 'success', 'message': f'{username} has left the group.'}).encode('utf-8'))
 
     elif command == 'users':
-        client_socket.send(json.dumps({'status': 'success', 'users': users}).encode('utf-8'))
+        client_socket.send(json.dumps({'status': 'success', 'users': users}).encode('utf-8'))\
+    
+    elif command == 'groups':
+        client_socket.send(json.dumps({'status': 'success', 'groups': groups}).encode('utf-8'))
+
+    elif command == 'join_group':
+            group_id = request_data.get('group_id')
+            group = None
+
+            if group_id:
+                group = next((g for g in groups if g['group_id'] == group_id  or g['group_name' == group_id]), None)
+
+            if group:
+                client_socket.send(json.dumps({'status': 'success', 'message': f'Joined group "{group["group_name"]}" successfully!'}).encode('utf-8'))
+            else:
+                client_socket.send(json.dumps({'status': 'failure', 'message': 'Group not found.'}).encode('utf-8'))
 
     elif command == 'message':
         message_id = request_data.get('message_id')
@@ -140,7 +161,7 @@ def start_server():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(('localhost', 5050))
     server.listen(5)
-    print("Server started on port 8080...")
+    print("Server started on port 5050...")
 
     # Start a thread to handle server console commands
     console_thread = threading.Thread(target=handle_server_console)
@@ -156,5 +177,4 @@ def start_server():
         client_thread = threading.Thread(target=handle_client, args=(client_socket, addr))
         client_thread.start()
 
-if __name__ == "__main__":
-    start_server()
+start_server()

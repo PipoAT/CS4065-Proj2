@@ -53,22 +53,22 @@ def handle_commands():
             print("Exiting the client.")
             break
 
-        elif command.command == "%groups":
+        elif command == "%groups":
             get_groups()
 
-        elif command.command == "%groupjoin":
+        elif command == "%groupjoin":
             join_group_by_id()
 
-        elif command.command == "%grouppost":
+        elif command == "%grouppost":
             post_to_group_by_id()
 
-        elif command.command == "%groupusers":
+        elif command == "%groupusers":
             get_users_by_id()
 
-        elif command.command == "%groupleave":
+        elif command == "%groupleave":
             leave_group_by_id()
         
-        elif command.command == "%groupmessage":
+        elif command == "%groupmessage":
             get_message_by_id()
         
         # Invalid command handling
@@ -77,10 +77,15 @@ def handle_commands():
 
 # Command Functions
 def get_groups():
-    send_request('groups')
+    groups = send_request('groups')
+    groups_list = json.loads(groups).get('groups', [])
+    for group in groups_list:
+        print(f"Group ID: {group['group_id']}, Group Name: {group['group_name']}")
 
 def join_group_by_id():
-    send_request('groupjoin', group_id)
+    group_id = input("Enter the group name/ID: ")
+    join = send_request('join_group', group_id)
+    print(join)
 
 def post_to_group_by_id():
     send_request('grouppost', {'sender': username, 'subject': subject, 'body': body})
@@ -221,13 +226,16 @@ if __name__ == '__main__':
         def get_groups(self):
             # Send a request to the server to get the list of groups
             response = send_request('groups')
+            groups = json.loads(response).get('groups', [])
+            if not groups:
+                messagebox.showerror("Error", "No groups available.")
+            else:
+                messagebox.showinfo("Groups", "\n".join([f"Group ID: {group['group_id']}, Group Name: {group['group_name']}" for group in groups]))
 
         def get_message_by_id(self):
             # Send a request to the server to get a message by its ID
             message_id = input("Enter the message ID: ")
             response = send_request('groupmessage', {'message_id': message_id})
-
-
 
         def connect_to_server(self):
             global server_url, server_port
