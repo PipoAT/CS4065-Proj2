@@ -2,7 +2,7 @@ import json
 import socket
 import threading
 import tkinter as tk
-from tkinter import scrolledtext, messagebox
+from tkinter import scrolledtext, messagebox, simpledialog
 
 # Global variables
 server_url = 'localhost'  # Default server address
@@ -83,9 +83,24 @@ def get_groups():
         print(f"Group ID: {group['group_id']}, Group Name: {group['group_name']}")
 
 def join_group_by_id():
+    groups = send_request('groups')
+    groups_list = json.loads(groups).get('groups', [])
+    print("Available groups:")
+    for group in groups_list:
+        print(f"Group ID: {group['group_id']}, Group Name: {group['group_name']}    ")
     group_id = input("Enter the group name/ID: ")
-    join = send_request('join_group', group_id)
-    print(join)
+    username = input("Enter your username: ")
+    group = next((g for g in groups_list if g['group_id'] == group_id or g['group_name'] == group_id), None)
+    if not group:
+        print(f"Group {group_id} not found.")
+        return
+
+    response = send_request('join_group', {'group_id': group['group_id'], 'username': username})
+    response_data = json.loads(response)
+    if response_data.get('status') == 'success':
+        print(f"Successfully joined group {group_id}")
+    else:
+        print(f"Failed to join group {group_id}: {response_data.get('error', response_data.get('message'))}")
 
 def post_to_group_by_id():
     send_request('grouppost', {'sender': username, 'subject': subject, 'body': body})
@@ -99,19 +114,30 @@ def leave_group_by_id():
 def get_message_by_id():
     send_request('groupmessage', {'message_id': message_id})
 
-def send_request(command, data=None):
+def send_request(command, data=None, data2=None):
     # Create socket and send data
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-        client_socket.connect((server_url, server_port))
-        
-        request_data = {'command': command}
-        if data:
-            request_data.update(data)
-        
-        client_socket.send(json.dumps(request_data).encode('utf-8'))
-        
-        response = client_socket.recv(1024).decode('utf-8')
-        return response
+        client_socket.settimeout(5)  # Set a timeout of 5 seconds
+        try:
+            client_socket.connect((server_url, server_port))
+            
+            request_data = {'command': command}
+            if data:
+                request_data.update(data)
+
+            if data2:
+                request_data.update(data2)
+            
+            client_socket.send(json.dumps(request_data).encode('utf-8'))
+            
+            response = client_socket.recv(1024).decode('utf-8')
+            return response
+        except socket.timeout:
+            print("Request timed out. Please try again.")
+            return json.dumps({'status': 'error', 'error': 'Request timed out'})
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return json.dumps({'status': 'error', 'error': str(e)})
 
 def join_group():
     global username
@@ -195,7 +221,8 @@ if __name__ == '__main__':
 
             tk.Label(username_frame, text="Username:").grid(row=0, column=0, padx=5)
             tk.Entry(username_frame, textvariable=self.username).grid(row=0, column=1, padx=5)
-            tk.Button(username_frame, text="Join", command=self.join_group).grid(row=0, column=2, padx=5)
+            tk.Button(username_frame, text="Join Any Group", command=self.join_group).grid(row=0, column=2, padx=5)
+            tk.Button(username_frame, text="Join Group By ID", command=self.join_group_by_id).grid(row=0, column=3, padx=5)
 
             # Message display area
             self.message_area = scrolledtext.ScrolledText(self.root, wrap=tk.WORD, state='disabled', width=50, height=15)
@@ -219,9 +246,10 @@ if __name__ == '__main__':
 
             tk.Button(button_frame, text="Get Users", command=self.get_users).grid(row=0, column=0, padx=5)
             tk.Button(button_frame, text="Get Groups", command=self.get_groups).grid(row=0, column=1, padx=5)
-            tk.Button(button_frame, text="Get Groups", command=self.get_message_by_id).grid(row=0, column=2, padx=5)
-            tk.Button(button_frame, text="Leave", command=self.leave_group).grid(row=0, column=3, padx=5)
-            tk.Button(button_frame, text="Exit", command=self.exit_client).grid(row=0, column=4, padx=5)
+            tk.Button(button_frame, text="Get Message", command=self.get_message_by_id).grid(row=0, column=2, padx=5)
+            tk.Button(button_frame, text="Leave Group", command=self.leave_group).grid(row=0, column=3, padx=5)
+            tk.Button(button_frame, text="Leave Group By ID", command=self.leave_group_by_id).grid(row=0, column=4, padx=5)
+            tk.Button(button_frame, text="Exit", command=self.exit_client).grid(row=0, column=5, padx=5)
 
         def get_groups(self):
             # Send a request to the server to get the list of groups
@@ -251,6 +279,63 @@ if __name__ == '__main__':
                 return
             send_request('join', {'username': username})
             
+
+        def join_group_by_id(self):
+            # Fetch the list of groups first
+            response = send_request('groups')
+            groups_list = json.loads(response).get('groups', [])
+            if not groups_list:
+                messagebox.showerror("Error", "No groups available.")
+                return
+
+            group_id = tk.simpledialog.askstring("Group ID", "Enter the group ID or Name to leave:")
+            if not group_id:
+                return
+            username = tk.simpledialog.askstring("Username", "Enter your username:")
+            if not username:
+                return
+
+            group = next((g for g in groups_list if g['group_id'] == group_id or g['group_name'] == group_id), None)
+            if not group:
+                messagebox.showerror("Error", f"Group {group_id} not found.")
+                return
+
+            response = send_request('join_group', {'group_id': group['group_id'], 'username': username})
+            response_data = json.loads(response)
+            if response_data.get('status') == 'success':
+                messagebox.showinfo("Success", f"Successfully joined group {group_id}")
+                gui.append_message(f"{username} successfully joined group {group_id}")
+            else:
+                messagebox.showerror("Error", f"Failed to join group {group_id}: {response_data.get('error', response_data.get('message'))}")
+
+        def leave_group_by_id(self):
+            # Fetch the list of groups first
+            response = send_request('groups')
+            groups_list = json.loads(response).get('groups', [])
+            if not groups_list:
+                messagebox.showerror("Error", "No groups available.")
+                return
+
+            group_id = tk.simpledialog.askstring("Group ID", "Enter the group ID or Name:")
+            if not group_id:
+                return
+            username = tk.simpledialog.askstring("Username", "Enter your username:")
+            if not username:
+                return
+
+            group = next((g for g in groups_list if g['group_id'] == group_id or g['group_name'] == group_id), None)
+            if not group:
+                messagebox.showerror("Error", f"Group {group_id} not found.")
+                return
+
+            response = send_request('groupleave', {'group_id': group['group_id'], 'username': username})
+            response_data = json.loads(response)
+            if response_data.get('status') == 'success':
+                messagebox.showinfo("Success", f"Successfully left group {group_id}")
+                gui.append_message(f"{username} successfully left group {group_id}")
+                username = ''
+            else:
+                messagebox.showerror("Error", f"Failed to leave group {group_id}: {response_data.get('error', response_data.get('message'))}")
 
         def post_message(self):
             subject = self.subject_entry.get()
@@ -285,6 +370,16 @@ if __name__ == '__main__':
             self.message_area.config(state='normal')
             self.message_area.insert(tk.END, message + '\n')
             self.message_area.config(state='disabled')
+
+        def post_group_message(self):
+            group = self.group_entry.get()
+            subject = self.subject_entry.get()
+            body = self.message_entry.get()
+            if not username:
+                messagebox.showerror("Error", "You must join the group first.")
+                return
+            message = send_request('grouppost', {'group': group, 'sender': username, 'subject': subject, 'body': body})
+            gui.append_message(f"{message}.")
 
         def gui_listen_for_messages(self):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:

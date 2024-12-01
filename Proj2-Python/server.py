@@ -7,12 +7,13 @@ from datetime import datetime
 users = []  # List of currently connected users
 messages = []  # List of posted messages
 clients = []  # List of active client connections
+user_groups = {}  # Dictionary to map users to groups
 
 groups = [
-        {'group_id': 1, 'group_name': 'Group1'},
-        {'group_id': 2, 'group_name': 'Group2'},
-        {'group_id': 3, 'group_name': 'Group3'}
-    ]
+    {'group_id': 1, 'group_name': 'Group1'},
+    {'group_id': 2, 'group_name': 'Group2'},
+    {'group_id': 3, 'group_name': 'Group3'}
+]
 
 # Message class to structure messages
 class Message:
@@ -34,7 +35,7 @@ class Message:
 
 # Function to handle client requests
 def handle_client(client_socket, client_address):
-    global users, messages, clients
+    global users, messages, clients, user_groups
 
     # Add client socket to the list of active clients
     clients.append(client_socket)
@@ -58,6 +59,7 @@ def handle_client(client_socket, client_address):
             username = client_socket.recv(1024).decode('utf-8')  # Prompt for a new username
         
         users.append(username)
+        user_groups[username] = []  # Initialize the user's group list
         print(f"User '{username}' has joined the group.")
         
         # Broadcast the user joining message to all connected clients
@@ -66,6 +68,23 @@ def handle_client(client_socket, client_address):
 
         # Send success response
         client_socket.send(json.dumps({'status': 'success', 'message': f'Welcome, {username}!' }).encode('utf-8'))
+
+    elif command == 'grouppost':
+        group = request_data.get('group')
+        sender = request_data.get('sender')
+        subject = request_data.get('subject')
+        body = request_data.get('body')
+        if not sender or not subject or not body:
+            client_socket.send(json.dumps({'status': 'failure', 'message': 'Sender, subject, and body are required.'}).encode('utf-8'))
+        else:
+            new_message = Message(group, sender, subject, body)
+            messages.append(new_message)
+            print(f"Message posted by {sender}: '{subject}'")
+
+            # Broadcast the message to all connected clients
+            broadcast_message(new_message)
+
+            client_socket.send(json.dumps({'status': 'success', 'message': f'Message titled "{subject}" posted successfully!'}).encode('utf-8'))
 
     elif command == 'post':
         sender = request_data.get('sender')
@@ -89,29 +108,54 @@ def handle_client(client_socket, client_address):
             client_socket.send(json.dumps({'status': 'failure', 'message': f'User "{username}" not found in the group.'}).encode('utf-8'))
         else:
             users.remove(username)
+            user_groups.pop(username, None)  # Remove the user from the user_groups dictionary
             print(f"User '{username}' has left the group.")
             # Broadcast that the user has left
             leave_message = Message('System', 'User Left', f'User "{username}" has left the group.')
             broadcast_message(leave_message)
             client_socket.send(json.dumps({'status': 'success', 'message': f'{username} has left the group.'}).encode('utf-8'))
 
+    elif command == 'groupleave':
+        group_id = request_data.get('group_id')
+        username = request_data.get('username')
+        if username not in user_groups:
+            client_socket.send(json.dumps({'status': 'failure', 'message': f'User "{username}" not found in the group.'}).encode('utf-8'))
+        else:
+            group = next((g for g in groups if g['group_id'] == group_id), None)
+            if group and group in user_groups.get(username, []):
+                user_groups[username].remove(group)
+                print(f"User '{username}' has left group '{group['group_name']}'.")
+                # Broadcast that the user has left the group
+                leave_message = Message('System', 'User Left Group', f'User "{username}" has left group "{group["group_name"]}".')
+                broadcast_message(leave_message)
+                client_socket.send(json.dumps({'status': 'success', 'message': f'{username} has left group "{group["group_name"]}".'}).encode('utf-8'))
+            else:
+                client_socket.send(json.dumps({'status': 'failure', 'message': f'User "{username}" is not in the specified group.'}).encode('utf-8'))
+
     elif command == 'users':
-        client_socket.send(json.dumps({'status': 'success', 'users': users}).encode('utf-8'))\
+        client_socket.send(json.dumps({'status': 'success', 'users': users}).encode('utf-8'))
     
     elif command == 'groups':
         client_socket.send(json.dumps({'status': 'success', 'groups': groups}).encode('utf-8'))
 
     elif command == 'join_group':
-            group_id = request_data.get('group_id')
-            group = None
+        username = request_data.get('username')
+        group_id = request_data.get('group_id')
+        group = None
 
-            if group_id:
-                group = next((g for g in groups if g['group_id'] == group_id  or g['group_name' == group_id]), None)
+        if group_id:
+            group = next((g for g in groups if g['group_id'] == group_id), None)
 
-            if group:
-                client_socket.send(json.dumps({'status': 'success', 'message': f'Joined group "{group["group_name"]}" successfully!'}).encode('utf-8'))
+        if group:
+            if username in user_groups:
+                client_socket.send(json.dumps({'status': 'failure', 'message': f'User "{username}" is already in a group.'}).encode('utf-8'))
             else:
-                client_socket.send(json.dumps({'status': 'failure', 'message': 'Group not found.'}).encode('utf-8'))
+                if username not in user_groups:
+                    user_groups[username] = []
+                user_groups[username].append(group)
+                client_socket.send(json.dumps({'status': 'success', 'message': f'Joined group "{group["group_name"]}" successfully!'}).encode('utf-8'))
+        else:
+            client_socket.send(json.dumps({'status': 'failure', 'message': 'Group not found.'}).encode('utf-8'))
 
     elif command == 'message':
         message_id = request_data.get('message_id')
