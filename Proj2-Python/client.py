@@ -106,7 +106,18 @@ def post_to_group_by_id():
     send_request('grouppost', {'sender': username, 'subject': subject, 'body': body})
 
 def get_users_by_id():
-    send_request('groupusers')
+    response = send_request('groups')
+    groups_list = json.loads(response).get('groups', [])
+    group_id = input("Enter the group ID: ")
+    group = next((g for g in groups_list if g['group_id'] == group_id or g['group_name'] == group_id), None)
+    response = send_request('groupusers', {'group_id': group['group_id']})
+    users = json.loads(response).get('users', [])
+    if not users:
+        print(f"No users found in group {group_id}.")
+    else:
+        print(f"Users in group {group_id}:")
+        for user in users:
+            print(user)
 
 def leave_group_by_id():
     send_request('groupleave', {'username': username})
@@ -245,11 +256,12 @@ if __name__ == '__main__':
             button_frame.pack(pady=10)
 
             tk.Button(button_frame, text="Get Users", command=self.get_users).grid(row=0, column=0, padx=5)
-            tk.Button(button_frame, text="Get Groups", command=self.get_groups).grid(row=0, column=1, padx=5)
-            tk.Button(button_frame, text="Get Message", command=self.get_message_by_id).grid(row=0, column=2, padx=5)
-            tk.Button(button_frame, text="Leave Group", command=self.leave_group).grid(row=0, column=3, padx=5)
-            tk.Button(button_frame, text="Leave Group By ID", command=self.leave_group_by_id).grid(row=0, column=4, padx=5)
-            tk.Button(button_frame, text="Exit", command=self.exit_client).grid(row=0, column=5, padx=5)
+            tk.Button(button_frame, text="Get Users by Group", command=self.get_users_by_id).grid(row=0, column=1, padx=5)
+            tk.Button(button_frame, text="Get Groups", command=self.get_groups).grid(row=0, column=2, padx=5)
+            tk.Button(button_frame, text="Get Message", command=self.get_message_by_id).grid(row=0, column=3, padx=5)
+            tk.Button(button_frame, text="Leave Group", command=self.leave_group).grid(row=0, column=4, padx=5)
+            tk.Button(button_frame, text="Leave Group By ID", command=self.leave_group_by_id).grid(row=0, column=5, padx=5)
+            tk.Button(button_frame, text="Exit", command=self.exit_client).grid(row=0, column=6, padx=5)
 
         def get_groups(self):
             # Send a request to the server to get the list of groups
@@ -353,6 +365,25 @@ if __name__ == '__main__':
                 messagebox.showerror("Error", "No users in the group.")
             else:
                 messagebox.showinfo("Users", "\n".join(users))
+
+        def get_users_by_id(self):
+            response = send_request('groups')
+            groups_list = json.loads(response).get('groups', [])
+            group_id = tk.simpledialog.askstring("Group ID", "Enter the group ID or Name:")
+            if not group_id:
+                return
+            group = next((g for g in groups_list if g['group_id'] == group_id or g['group_name'] == group_id), None)
+            if not group:
+                messagebox.showerror("Error", f"Group {group_id} not found.")
+                return
+
+            response = send_request('groupusers', {'group_id': group['group_id']})
+            users = json.loads(response).get('users', [])
+            if not users:
+                messagebox.showinfo("Users", "No users found in the group.")
+            else:
+                messagebox.showinfo("Users", "\n".join(users))
+            
 
         def leave_group(self):
             global username

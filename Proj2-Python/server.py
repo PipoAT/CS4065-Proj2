@@ -134,6 +134,15 @@ def handle_client(client_socket, client_address):
 
     elif command == 'users':
         client_socket.send(json.dumps({'status': 'success', 'users': users}).encode('utf-8'))
+
+    elif command == 'groupusers':
+        group_id = request_data.get('group_id')
+        group = next((g for g in groups if g['group_id'] == group_id), None)
+        if group:
+            group_users = [user for user, user_groups_list in user_groups.items() if group in user_groups_list]
+            client_socket.send(json.dumps({'status': 'success', 'users': group_users}).encode('utf-8'))
+        else:
+            client_socket.send(json.dumps({'status': 'failure', 'message': 'Group not found.'}).encode('utf-8'))
     
     elif command == 'groups':
         client_socket.send(json.dumps({'status': 'success', 'groups': groups}).encode('utf-8'))
@@ -147,11 +156,11 @@ def handle_client(client_socket, client_address):
             group = next((g for g in groups if g['group_id'] == group_id), None)
 
         if group:
-            if username in user_groups:
-                client_socket.send(json.dumps({'status': 'failure', 'message': f'User "{username}" is already in a group.'}).encode('utf-8'))
+            if username not in user_groups:
+                user_groups[username] = []
+            if group in user_groups[username]:
+                client_socket.send(json.dumps({'status': 'failure', 'message': f'User "{username}" is already in group "{group["group_name"]}".'}).encode('utf-8'))
             else:
-                if username not in user_groups:
-                    user_groups[username] = []
                 user_groups[username].append(group)
                 client_socket.send(json.dumps({'status': 'success', 'message': f'Joined group "{group["group_name"]}" successfully!'}).encode('utf-8'))
         else:
