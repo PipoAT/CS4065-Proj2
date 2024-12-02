@@ -59,8 +59,18 @@ def handle_commands():
         elif command == "%groupjoin":
             join_group_by_id()
 
-        elif command == "%grouppost":
-            post_to_group_by_id()
+        elif command.startswith("%grouppost"):
+            parts = command.split(' ', 3)  # Split into 3 parts: group_id, subject, body
+            if len(parts) < 4:
+                print("Missing Parts -> Make While Later")
+            else:
+                group_id = parts[1]  # Assuming the first part is the group ID
+                subject = parts[2]  # The second part is the subject
+                body = parts[3]  # The third part is the body
+
+                # Assuming 'post_to_group_by_id' is a function to handle posting a message to a group
+                post_to_group_by_id(group_id, subject, body)
+            print("Grouppost ran.")
 
         elif command == "%groupusers":
             get_users_by_id()
@@ -73,7 +83,7 @@ def handle_commands():
         
         # Invalid command handling
         else:
-            print("Invalid command. Available commands: %connect, %join, %post, %users, %leave, %message, %exit.")
+            print("Invalid command. Available commands: %connect, %join, %post, %users, %leave, %message, %exit, %groups, %groupjoin, %grouppost, %groupusers, %groupleave, %groupmessage.")
 
 # Command Functions
 def get_groups():
@@ -83,18 +93,27 @@ def get_groups():
         print(f"Group ID: {group['group_id']}, Group Name: {group['group_name']}")
 
 def join_group_by_id():
+    global username
+    
+    # Ensure that the username is set before proceeding
+    if not username:
+        print("Username is required to join a group. Please set your username first.")
+        return
+
     groups = send_request('groups')
     groups_list = json.loads(groups).get('groups', [])
     print("Available groups:")
     for group in groups_list:
         print(f"Group ID: {group['group_id']}, Group Name: {group['group_name']}    ")
-    group_id = input("Enter the group name/ID: ")
-    username = input("Enter your username: ")
+
+    group_id = input("Enter the group name: ")
     group = next((g for g in groups_list if g['group_id'] == group_id or g['group_name'] == group_id), None)
+    
     if not group:
         print(f"Group {group_id} not found.")
         return
 
+    # Use the global username for joining the group
     response = send_request('join_group', {'group_id': group['group_id'], 'username': username})
     response_data = json.loads(response)
     if response_data.get('status') == 'success':
@@ -102,8 +121,23 @@ def join_group_by_id():
     else:
         print(f"Failed to join group {group_id}: {response_data.get('error', response_data.get('message'))}")
 
-def post_to_group_by_id():
-    send_request('grouppost', {'sender': username, 'subject': subject, 'body': body})
+
+def post_to_group_by_id(group, subject, body):
+    while not subject.strip() or not body.strip():
+        if not subject.strip():
+            subject = input("Please enter a title (subject) for your post: ").strip()
+        
+        if not body.strip():
+            body = input("Please enter the body (content) of your post: ").strip()
+
+        # Provide feedback on the correct format if both are missing
+        if not subject.strip() or not body.strip():
+            print("Both title and body are required. Please follow this format:")
+            print("Title (subject): A brief title for the post.")
+            print("Body: The content of your post.\n")
+    
+    # Once both are provided, send the post request
+    send_request('grouppost', {'group': group, 'sender': username, 'subject': subject, 'body': body})
 
 def get_users_by_id():
     response = send_request('groups')
@@ -406,6 +440,7 @@ if __name__ == '__main__':
             group = self.group_entry.get()
             subject = self.subject_entry.get()
             body = self.message_entry.get()
+            
             if not username:
                 messagebox.showerror("Error", "You must join the group first.")
                 return
@@ -433,7 +468,7 @@ if __name__ == '__main__':
         command = input().strip().lower()
         if command == "cli":
             handle_commands()
-        else: 
+        elif command == "gui": 
             root = tk.Tk()
             gui = ChatClientGUI(root)
 
@@ -442,3 +477,5 @@ if __name__ == '__main__':
             listen_thread.start()
 
             root.mainloop()
+        else:
+            print("Please use a valid command: cli | gui")
