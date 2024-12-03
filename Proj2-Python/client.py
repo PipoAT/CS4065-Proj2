@@ -120,10 +120,16 @@ def get_users_by_id():
             print(user)
 
 def leave_group_by_id():
-    send_request('groupleave', {'username': username})
+    group = input("Enter the group ID or name: ")
+    username = input("Enter your username: ")
+    response = send_request('groupleave', {'group_id': group, 'username': username})
+    print(response)
 
 def get_message_by_id():
-    send_request('groupmessage', {'message_id': message_id})
+    group = input("Enter the group ID or name: ")
+    message_id = input("Enter the message ID: ")
+    response = send_request('groupmessage', {'group_id': group, 'message_id': message_id})
+    print(response)
 
 def send_request(command, data=None, data2=None):
     # Create socket and send data
@@ -166,7 +172,14 @@ def post_message(subject, body):
     send_request('post', {'sender': username, 'subject': subject, 'body': body})
 
 def get_users():
-    send_request('users')
+    response = send_request('users')
+    users = json.loads(response).get('users', [])
+    if not users:
+        print("No users found.")
+    else:
+        print("Users in the group:")
+        for user in users:
+            print(user)
 
 def leave_group():
     global username
@@ -274,8 +287,21 @@ if __name__ == '__main__':
 
         def get_message_by_id(self):
             # Send a request to the server to get a message by its ID
-            message_id = input("Enter the message ID: ")
-            response = send_request('groupmessage', {'message_id': message_id})
+            response = send_request('groups')
+            groups_list = json.loads(response).get('groups', [])
+            group_id = tk.simpledialog.askstring("Group ID", "Enter the group ID or Name:")
+            message_id = tk.simpledialog.askstring("Message ID", "Enter the Message ID:")
+            if not group_id:
+                return
+            group = next((g for g in groups_list if g['group_id'] == group_id or g['group_name'] == group_id), None)
+            if not group:
+                messagebox.showerror("Error", f"Group {group_id} not found.")
+                return
+
+            response = send_request('message', {'group_id': group_id, 'message_id': message_id})
+            message = json.loads(response).get('message')
+            messagebox.showinfo("Message", message)
+
 
         def connect_to_server(self):
             global server_url, server_port

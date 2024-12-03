@@ -12,8 +12,11 @@ user_groups = {}  # Dictionary to map users to groups
 groups = [
     {'group_id': 1, 'group_name': 'Group1'},
     {'group_id': 2, 'group_name': 'Group2'},
-    {'group_id': 3, 'group_name': 'Group3'}
+    {'group_id': 3, 'group_name': 'Group3'},
+    {'group_id': 4, 'group_name': 'Group4'},
+    {'group_id': 5, 'group_name': 'Group5'}
 ]
+
 
 # Message class to structure messages
 class Message:
@@ -32,6 +35,20 @@ class Message:
             'subject': self.subject,
             'body': self.body
         }
+    
+
+users = ['Alice', 'Bob', 'Charlie']
+messages = [
+    Message('Alice', 'Hello', 'Hello everyone!'),
+    Message('Bob', 'Hi', 'Hi Alice!'),
+    Message('Charlie', 'Greetings', 'Greetings to all!')
+]
+clients = []
+user_groups = {
+    'Alice': [groups[0], groups[1]],
+    'Bob': [groups[1], groups[2]],
+    'Charlie': [groups[2], groups[3]]
+}
 
 # Function to handle client requests
 def handle_client(client_socket, client_address):
@@ -167,12 +184,17 @@ def handle_client(client_socket, client_address):
             client_socket.send(json.dumps({'status': 'failure', 'message': 'Group not found.'}).encode('utf-8'))
 
     elif command == 'message':
+        group_id = request_data.get('group_id')
         message_id = request_data.get('message_id')
-        if 0 < message_id <= len(messages):
-            message = messages[message_id - 1].to_dict()
+        group = next((g for g in groups if g['group_id'] == group_id or g['group_name'] == group_id), None)
+        group_messages = [msg for msg in messages if msg.sender == group['group_name']]
+        if 0 < message_id <= len(group_messages):
+            message = group_messages[message_id - 1].to_dict()
             client_socket.send(json.dumps({'status': 'success', 'message': message}).encode('utf-8'))
         else:
-            client_socket.send(json.dumps({'status': 'failure', 'message': f'Message with ID {message_id} not found.'}).encode('utf-8'))
+            client_socket.send(json.dumps({'status': 'failure', 'message': f'Message with ID {message_id} not found in group "{group["group_name"]}".'}).encode('utf-8'))
+
+
 
     client_socket.close()
     # Remove the client from the active clients list when they disconnect
