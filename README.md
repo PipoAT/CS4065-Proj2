@@ -1,4 +1,5 @@
 # Project 2: Simple Client-Server Interaction
+`By: Andrew P & Dylan B`
 
 Project 2 for Computer Networks at University of Cincinnati Fall 2024 Semester.
 
@@ -72,3 +73,14 @@ Body: hello i'm new here
 ```
 All Users will be able to see your messages.
 Multiple Terminal Instances can be run to simulate users joining.
+
+# Issues:
+### Getting Started
+Originally, we planned to use Svelte as the basis for the visual elements of the GUI. However, after extensive testing and due to the lack of documentation on using Svelte with sockets and threading in Python, we decided to switch to a Python GUI library.
+
+### Issues With Server Side Code
+Early on, we encountered an issue where the server-side code wouldn't return the last two messages whenever a user joined the chat.
+
+Another issue we encountered was that the code couldn't detect when a user disconnected abruptly (such as through a crash) and failed to remove them from the user list
+
+### Issues With Client Side Code
