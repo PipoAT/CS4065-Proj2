@@ -171,6 +171,7 @@ def handle_client(client_socket, client_address):
         if 0 < message_id <= len(messages):
             message = messages[message_id - 1].to_dict()
             client_socket.send(json.dumps({'status': 'success', 'message': message}).encode('utf-8'))
+            print("Message Attempted")
         else:
             client_socket.send(json.dumps({'status': 'failure', 'message': f'Message with ID {message_id} not found.'}).encode('utf-8'))
 
@@ -230,4 +231,24 @@ def start_server():
         client_thread = threading.Thread(target=handle_client, args=(client_socket, addr))
         client_thread.start()
 
+def get_last_messages(request_data):
+    username = request_data.get('username')
+    group_id = request_data.get('group_id')  # Assume the group ID is available in the request
+
+    # Fetch the last two messages for the group from the database
+    messages = get_messages_from_group(group_id, limit=2)
+    
+    return json.dumps({
+        'status': 'success',
+        'messages': messages
+    })
+
+def get_messages_from_group(group_id, limit=2):
+    # Here you would query your database or data structure to get the last `limit` messages for the given group.
+    # Example:
+    messages = [
+        {'sender': 'User1', 'subject': 'Hello World', 'date': '2024-12-03', 'body': 'This is the first message.'},
+        {'sender': 'User2', 'subject': 'Greetings', 'date': '2024-12-02', 'body': 'This is the second message.'},
+    ]
+    return messages[-limit:]  # Return the last `limit` messages
 start_server()

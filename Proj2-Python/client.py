@@ -45,9 +45,12 @@ def handle_commands():
         
         # %message command to get a specific message by ID
         elif command.startswith("%message"):
-            _, message_id = command.split()
-            get_message(int(message_id))
-        
+            try:
+                _, message_id = command.split()
+                message_id = int(message_id)  # Ensure it's an integer
+                get_message(message_id)
+            except ValueError:
+                print("Invalid message ID. Please provide a valid numeric ID.")
         # %exit command to exit the client
         elif command == "%exit":
             print("Exiting the client.")
