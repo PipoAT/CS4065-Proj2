@@ -77,7 +77,7 @@ def handle_client(client_socket, client_address):
         
         users.append(username)
         user_groups[username] = []  # Initialize the user's group list
-        print(f"User '{username}' has joined the group.")
+        print(f"User '{username}' has joined the the general chat.")
         
         # Broadcast the user joining message to all connected clients
         join_message = Message('System', 'User Joined', f'User "{username}" has joined the group.')
