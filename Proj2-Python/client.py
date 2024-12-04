@@ -42,7 +42,14 @@ def handle_commands():
         
         # %users command to get the list of users
         elif command == "%users":
-            send_request('users')
+            response = send_request('users')
+            users = json.loads(response).get('users', [])
+            if not users:
+                print("No users found.")
+            else:
+                print("Users in the group:")
+                for user in users:
+                    print(user)
         
         # %leave command to leave the group
         elif command == "%leave":
