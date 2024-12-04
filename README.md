@@ -1,12 +1,11 @@
 # Project 2: Simple Client-Server Interaction
+`By: Andrew P & Dylan B`
 
 Project 2 for Computer Networks at University of Cincinnati Fall 2024 Semester.
 
 ### Files Included:
 - `client.py`: The Python script that acts as the client. It sends requests to the server and processes the responses.
 - `server.py`: The Python script that acts as the server. It handles requests from the client and sends responses back.
-- `index.html`: Not currently Working - A simple HTML page that the client interacts with.
-- `login.html`: Not currently Working - Leagacy Idea
 ---
 ## Setting Up and Running the Project
 ### Step 1: Running the Server
@@ -23,18 +22,23 @@ The server will start and listen for incoming requests on a specified port (typi
 ```
 python client.py
 ```
-The client will connect to the server at http://localhost:8080, send requests, and handle the server's responses.
+The client will connect to the server at http://localhost:5050, send requests, and handle the server's responses.
 ---
 ## How To Utilize the GUI
-### Step 1: Enter the Server Address and Port, and click "Connect"
-### Step 2: Enter the Username, and click "Join"
-### Step 3: You can perform any of the actions below:
-#### - To Send a Message, Enter the Subject and Message, and click "Post"
-#### - To View All Users, click "Get Users"
-#### - To Leave the Chat, click "Leave"
-#### - To Exit the GUI, click "Exit"
----
+- To operate the GUI in place of the CLI, run the client.py script and enter in "GUI" when prompted to.
+- The GUI will then appear and allow you to interact with the server.
 
+- To Connect: Enter the server's IP address and port number in the input fields and click the "Connect" button.
+- To Join A Group:
+    - Enter the username in the input field and click the "Join Any Group" button.
+    OR
+    - Click "Join Group By ID" and enter the name of the group and username when prompted
+
+- To Leave A Group:
+    - Enter the username in the input field and click the "Leave Group" button.
+    OR
+    - Click "Leave Group By ID" and enter the name of the group and username when prompted
+---
 
 ## How To Use The Client Code 
 ### Step 1: Connect to The Server
@@ -72,3 +76,17 @@ Body: hello i'm new here
 ```
 All Users will be able to see your messages.
 Multiple Terminal Instances can be run to simulate users joining.
+
+# Issues:
+### Getting Started
+Originally, we planned to use Svelte as the basis for the visual elements of the GUI. However, after extensive testing and due to the lack of documentation on using Svelte with sockets and threading in Python, we decided to switch to a Python GUI library.
+
+### Issues With Server Side Code
+Early on, we encountered an issue where the server-side code wouldn't return the last two messages whenever a user joined the chat.
+
+Another issue we encountered was that the code couldn't detect when a user disconnected abruptly (such as through a crash) and failed to remove them from the user list
+
+### Issues With Client Side Code
+Issues that we encountered included ensuring that user errors were handled properly as certain actions (i.e. typing in the wrong command, not providing enough info) could have easily cause the program to crash or freeze.
+
+Also, we had encountered issues with the client code not being able to read the data from the server side code properly.

@@ -78,7 +78,13 @@ def handle_client(client_socket, client_address):
         users.append(username)
         user_groups[username] = []  # Initialize the user's group list
         print(f"User '{username}' has joined the the general chat.")
+
         
+        last_messages = get_last_messages()
+        print("Test:", last_messages)
+        for msg in last_messages:
+            broadcast_message(msg)
+
         # Broadcast the user joining message to all connected clients
         join_message = Message('System', 'User Joined', f'User "{username}" has joined the group.')
         broadcast_message(join_message)
@@ -191,6 +197,7 @@ def handle_client(client_socket, client_address):
         if 0 < message_id <= len(group_messages):
             message = group_messages[message_id - 1].to_dict()
             client_socket.send(json.dumps({'status': 'success', 'message': message}).encode('utf-8'))
+            print("Message Attempted")
         else:
             client_socket.send(json.dumps({'status': 'failure', 'message': f'Message with ID {message_id} not found in group "{group["group_name"]}".'}).encode('utf-8'))
 
@@ -202,7 +209,8 @@ def handle_client(client_socket, client_address):
 
 # Function to broadcast a message to all connected clients
 def broadcast_message(message):
-    global clients
+    global clients, messages
+    messages.append(message)  # Append the message to the messages list
     for client in clients:
         try:
             client.send(json.dumps({'status': 'new_message', 'message': message.to_dict()}).encode('utf-8'))
@@ -243,6 +251,12 @@ def start_server():
     console_thread.daemon = True  # Daemonize so it exits when the main program exits
     console_thread.start()
 
+    #welcome_message = Message('System', 'Welcome to General Chat', f'Welcome Users, to the general chat!')
+    #broadcast_message(welcome_message)
+
+    #nice_message = Message('System', 'Please Be Nice', 'Please be respectful and kind to everyone in the chat.')
+    #broadcast_message(nice_message)
+
     while True:
         # Accept incoming client connections
         client_socket, addr = server.accept()
@@ -252,4 +266,17 @@ def start_server():
         client_thread = threading.Thread(target=handle_client, args=(client_socket, addr))
         client_thread.start()
 
+def get_last_messages():
+    # Return the last two messages from the global messages list
+    print("attempting to send user 1")
+    return [msg.to_dict() for msg in messages[-2:]]
+
+def get_messages_from_group(group_id, limit=2):
+    # Here you would query your database or data structure to get the last `limit` messages for the given group.
+    # Example:
+    messages = [
+        {'sender': 'User1', 'subject': 'Hello World', 'date': '2024-12-03', 'body': 'This is the first message.'},
+        {'sender': 'User2', 'subject': 'Greetings', 'date': '2024-12-02', 'body': 'This is the second message.'},
+    ]
+    return messages[-limit:]  # Return the last `limit` messages
 start_server()
