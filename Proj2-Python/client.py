@@ -63,6 +63,9 @@ def handle_commands():
                 print("Invalid message ID. Please provide a valid numeric ID.")
         # %exit command to exit the client
         elif command == "%exit":
+            if username:
+                send_request('leave', {'username': username})
+                print(f"{username} has left the chat.")
             print("Exiting the client.")
             break
 
@@ -151,7 +154,7 @@ def post_to_group_by_id(group, subject, body):
 def get_users_by_id():
     response = send_request('groups')
     groups_list = json.loads(response).get('groups', [])
-    group_id = input("Enter the group ID: ")
+    group_id = input("Enter the group Name: ")
     group = next((g for g in groups_list if g['group_id'] == group_id or g['group_name'] == group_id), None)
     response = send_request('groupusers', {'group_id': group['group_id']})
     users = json.loads(response).get('users', [])
@@ -164,7 +167,7 @@ def get_users_by_id():
 
 def leave_group_by_id():
     response = send_request('groups')
-    group_id = input("Enter the group ID: ")
+    group_id = input("Enter the group Name: ")
     username = input("Enter your username: ")
     groups_list = json.loads(response).get('groups', [])
     group = next((g for g in groups_list if g['group_id'] == group_id or g['group_name'] == group_id), None)
