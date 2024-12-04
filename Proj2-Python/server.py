@@ -80,10 +80,10 @@ def handle_client(client_socket, client_address):
         print(f"User '{username}' has joined the the general chat.")
 
         
-        last_messages = get_last_messages()
-        print("Test:", last_messages)
-        for msg in last_messages:
-            broadcast_message(msg)
+        #last_messages = get_last_messages()
+        #print("Test:", last_messages)
+        #for msg in last_messages:
+        #    broadcast_message(msg)
 
         # Broadcast the user joining message to all connected clients
         join_message = Message('System', 'User Joined', f'User "{username}" has joined the group.')
@@ -216,7 +216,7 @@ def broadcast_message(message):
             client.send(json.dumps({'status': 'new_message', 'message': message.to_dict()}).encode('utf-8'))
         except:
             # If sending the message fails (e.g., client disconnected), remove the client
-            clients.remove(client)
+            print("error")
 
 # Function to handle server console commands
 def handle_server_console():

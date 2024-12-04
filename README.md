@@ -15,7 +15,7 @@ Project 2 for Computer Networks at University of Cincinnati Fall 2024 Semester.
 ```
 python server.py
 ```
-The server will start and listen for incoming requests on a specified port (typically http://localhost:8080).
+The server will start and listen for incoming requests on a specified port (typically http://localhost:5050).
 ### Step 2: Running the Client
 - The client (client.py) is typically invoked from within the HTML page (via JavaScript) or can be manually run from the terminal.
 - To run the client, use the following command in a new terminal:
@@ -53,7 +53,7 @@ The client will connect to the server at http://localhost:5050, send requests, a
 ## How To Use The Client Code 
 ### Step 1: Connect to The Server
 ```
-%connect localhost 8080 
+%connect localhost 5050 
 ```
 ### Step 2: Join The Bored
 ```
@@ -69,7 +69,7 @@ Enter your username: YourName
 ```
 ### Full Example:
 ```
-%connect localhost 8080 
+%connect localhost 5050 
 
 %join
 Enter your username: Dylan
@@ -91,10 +91,16 @@ Multiple Terminal Instances can be run to simulate users joining.
 ### Getting Started
 Originally, we planned to use Svelte as the basis for the visual elements of the GUI. However, after extensive testing and due to the lack of documentation on using Svelte with sockets and threading in Python, we decided to switch to a Python GUI library.
 
+We breifly attempted to create a single-page HTML application. However, this proved to be quite challenging and time-consuming. After much frustration and numerous headaches, we decided as a group to revert to using Python libraries for gui of this project.
+
 ### Issues With Server Side Code
 Early on, we encountered an issue where the server-side code wouldn't return the last two messages whenever a user joined the chat.
 
 Another issue we encountered was that the code couldn't detect when a user disconnected abruptly (such as through a crash) and failed to remove them from the user list
+
+User authentication has been a constant issue. In the early version of the code, the %users function worked as intended. However, between merging and updating to accommodate part two, it seemingly broke. This created issues where the server would allow any username to pass, even when it clearly shouldn't. We tried addressing this issue by reverting to older versions and directly integrating that code among other troubleshooting ideas, but we were unable to fix it.
+
+The message ID system is also non-functional due to a similar issue. Although the system properly logs and documents all incoming and outgoing messages and saves them into a list, attempting to display messages only to recently joined users causes a bug. This was one of the most annoying issues we encountered. We tried isolating messages to send them to the user prior to their join group message being sent by the server, but this didn't fix the issue. Some of the code used for debugging and attempting to solve this problem can still be found in server.py. Given more time, we believe we could solve this bug.
 
 ### Issues With Client Side Code
 Issues that we encountered included ensuring that user errors were handled properly as certain actions (i.e. typing in the wrong command, not providing enough info) could have easily cause the program to crash or freeze.
