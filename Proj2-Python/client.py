@@ -27,7 +27,12 @@ def handle_commands():
         
         # %join command to join the message board
         elif command == "%join":
-            join_group()
+            global username
+            if not username:
+                username = input("Enter your username: ").strip()
+            
+            # Continuously prompt for a new username if the one entered is taken
+            send_request('join', {'username': username})
         
         # %post command to post a message
         elif command.startswith("%post"):
@@ -37,11 +42,16 @@ def handle_commands():
         
         # %users command to get the list of users
         elif command == "%users":
-            get_users()
+            send_request('users')
         
         # %leave command to leave the group
         elif command == "%leave":
-            leave_group()
+            if not username:
+                print("You must join the group first using the %join command.")
+                return
+
+            send_request('leave', {'username': username})
+            username = ''  # Clear username after leaving
         
         # %message command to get a specific message by ID
         elif command.startswith("%message"):
@@ -57,7 +67,10 @@ def handle_commands():
             break
 
         elif command == "%groups":
-            get_groups()
+            groups = send_request('groups')
+            groups_list = json.loads(groups).get('groups', [])
+            for group in groups_list:
+                print(f"Group ID: {group['group_id']}, Group Name: {group['group_name']}")
 
         elif command == "%groupjoin":
             join_group_by_id()
@@ -88,20 +101,13 @@ def handle_commands():
         else:
             print("Invalid command. Available commands: %connect, %join, %post, %users, %leave, %message, %exit, %groups, %groupjoin, %grouppost, %groupusers, %groupleave, %groupmessage.")
 
-# Command Functions
-def get_groups():
-    groups = send_request('groups')
-    groups_list = json.loads(groups).get('groups', [])
-    for group in groups_list:
-        print(f"Group ID: {group['group_id']}, Group Name: {group['group_name']}")
-
 def join_group_by_id():
     global username
     
     # Ensure that the username is set before proceeding
     if not username:
         print("Username is required to join a group. Please set your username first.")
-        return
+        username = input("Enter your username: ").strip()
 
     groups = send_request('groups')
     groups_list = json.loads(groups).get('groups', [])
@@ -157,7 +163,18 @@ def get_users_by_id():
             print(user)
 
 def leave_group_by_id():
-    send_request('groupleave', {'username': username})
+    response = send_request('groups')
+    group_id = input("Enter the group ID: ")
+    username = input("Enter your username: ")
+    groups_list = json.loads(response).get('groups', [])
+    group = next((g for g in groups_list if g['group_id'] == group_id or g['group_name'] == group_id), None)
+    if not group:
+        print(f"Group {group_id} not found.")
+        return
+
+    response = send_request('groupleave', {'group_id': group['group_id'], 'username': username})
+    print( f"Successfully left group {group_id}")
+        
 
 def get_message_by_id():
     send_request('groupmessage', {'message_id': message_id})
@@ -187,32 +204,13 @@ def send_request(command, data=None, data2=None):
             print(f"An error occurred: {e}")
             return json.dumps({'status': 'error', 'error': str(e)})
 
-def join_group():
-    global username
-    if not username:
-        username = input("Enter your username: ").strip()
-    
-    # Continuously prompt for a new username if the one entered is taken
-    send_request('join', {'username': username})
-
 def post_message(subject, body):
     if not username:
         print("You must join the group first using the %join command.")
         return
 
     send_request('post', {'sender': username, 'subject': subject, 'body': body})
-
-def get_users():
-    send_request('users')
-
-def leave_group():
-    global username
-    if not username:
-        print("You must join the group first using the %join command.")
-        return
-
-    send_request('leave', {'username': username})
-    username = ''  # Clear username after leaving
+    print(subject, body)    
 
 def get_message(message_id):
     send_request('message', {'message_id': message_id})
@@ -311,8 +309,9 @@ if __name__ == '__main__':
 
         def get_message_by_id(self):
             # Send a request to the server to get a message by its ID
-            message_id = input("Enter the message ID: ")
-            response = send_request('groupmessage', {'message_id': message_id})
+            message_id = tk.simpledialog.askstring("Message ID", "Enter the message ID:")
+            response = send_request('message', {'message_id': message_id})
+            print(response)
 
         def connect_to_server(self):
             global server_url, server_port
