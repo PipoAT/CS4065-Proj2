@@ -38,6 +38,16 @@ The client will connect to the server at http://localhost:5050, send requests, a
     - Enter the username in the input field and click the "Leave Group" button.
     OR
     - Click "Leave Group By ID" and enter the name of the group and username when prompted
+
+- To Send a Message: Enter the subject of the message alongside the message in the input fields and click the "Post" Button
+- To Obtain Users:
+    - Click "Get Users"
+    OR
+    - Click "Get Users by Group" and enter the name of the group
+
+- To View Available Groups" Click on "Get Groups"
+
+- To Obtain Messages: Click on "Get Message" and enter the ID of the message you want to find
 ---
 
 ## How To Use The Client Code 
