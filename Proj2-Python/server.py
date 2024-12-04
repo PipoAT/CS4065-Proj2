@@ -100,7 +100,7 @@ def handle_client(client_socket, client_address):
         if not sender or not subject or not body:
             client_socket.send(json.dumps({'status': 'failure', 'message': 'Sender, subject, and body are required.'}).encode('utf-8'))
         else:
-            new_message = Message(group, sender, subject, body)
+            new_message = Message(sender, subject, body)
             messages.append(new_message)
             print(f"Message posted by {sender}: '{subject}'")
 
@@ -218,10 +218,24 @@ def broadcast_message(message):
             # If sending the message fails (e.g., client disconnected), remove the client
             print("error")
 
+def broadcast_message_group(message):
+    global clients, messages
+    messages.append(message)  # Append the message to the messages list
+    for client in clients:
+        try:
+            client.send(json.dumps({'status': 'new_message', 'message': message.to_dict()}).encode('utf-8'))
+        except:
+            # If sending the message fails (e.g., client disconnected), remove the client
+            print("error")
+
 # Function to handle server console commands
 def handle_server_console():
     while True:
-        command = input("Enter server command: ").strip().lower()
+        try:
+            command = input("Enter server command: ").strip().lower()
+        except EOFError:
+            print("EOFError: Exiting the server.")
+            break
 
         if command == "list_users":
             if users:
