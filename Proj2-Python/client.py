@@ -79,17 +79,23 @@ def handle_commands():
             join_group_by_id()
 
         elif command.startswith("%grouppost"):
-            parts = command.split(' ', 3)  # Split into 3 parts: group_id, subject, body
-            if len(parts) < 4:
-                print("Missing Parts -> Make While Later")
-            else:
-                group_id = parts[1]  # Assuming the first part is the group ID
-                subject = parts[2]  # The second part is the subject
-                body = parts[3]  # The third part is the body
+            while True:
+                parts = command.split(' ', 3)  # Split into 3 parts: group_id, subject, body
+                if len(parts) < 4:
+                    print("Missing parts. Please provide the group ID, subject, and body.")
+                    command = input("Enter the %grouppost command or type %back to cancel: ").strip()
+                    if command == "%back":
+                        print("Cancelled %grouppost command.")
+                        break
+                else:
+                    group_id = parts[1]  # Assuming the first part is the group ID
+                    subject = parts[2]  # The second part is the subject
+                    body = parts[3]  # The third part is the body
 
-                # Assuming 'post_to_group_by_id' is a function to handle posting a message to a group
-                post_to_group_by_id(group_id, subject, body)
-            print("Grouppost ran.")
+                    # Assuming 'post_to_group_by_id' is a function to handle posting a message to a group
+                    post_to_group_by_id(group_id, subject, body)
+                    print("Grouppost ran.")
+                    break
 
         elif command == "%groupusers":
             get_users_by_id()
@@ -180,7 +186,22 @@ def leave_group_by_id():
         
 
 def get_message_by_id():
-    send_request('groupmessage', {'message_id': message_id})
+    response = send_request('groups')
+    groups_list = json.loads(response).get('groups', [])
+    group_id = input("Enter the group ID: ")
+    group = next((g for g in groups_list if g['group_id'] == group_id or g['group_name'] == group_id), None)
+    message_id = input("Enter the message ID: ").strip()
+    if not message_id.isdigit():
+        print("Invalid message ID. Please provide a valid numeric ID.")
+        return
+
+    response = send_request('message', {'group_id': group, 'message_id': int(message_id)})
+    response_data = json.loads(response)
+    if response_data.get('status') == 'success':
+        message = response_data.get('message')
+        print(f"\nMessage ID: {message['id']}\nFrom: {message['sender']}\nSubject: {message['subject']}\nDate: {message['date']}\nBody: {message['body']}\n")
+    else:
+        print(f"Failed to retrieve message: {response_data.get('error', response_data.get('message'))}")
 
 def send_request(command, data=None, data2=None):
     # Create socket and send data
