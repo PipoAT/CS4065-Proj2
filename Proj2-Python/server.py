@@ -61,7 +61,13 @@ def handle_client(client_socket, client_address):
         users.append(username)
         user_groups[username] = []  # Initialize the user's group list
         print(f"User '{username}' has joined the the general chat.")
+
         
+        last_messages = get_last_messages()
+        print("Test:", last_messages)
+        for msg in last_messages:
+            broadcast_message(msg)
+
         # Broadcast the user joining message to all connected clients
         join_message = Message('System', 'User Joined', f'User "{username}" has joined the group.')
         broadcast_message(join_message)
@@ -181,7 +187,8 @@ def handle_client(client_socket, client_address):
 
 # Function to broadcast a message to all connected clients
 def broadcast_message(message):
-    global clients
+    global clients, messages
+    messages.append(message)  # Append the message to the messages list
     for client in clients:
         try:
             client.send(json.dumps({'status': 'new_message', 'message': message.to_dict()}).encode('utf-8'))
@@ -222,6 +229,12 @@ def start_server():
     console_thread.daemon = True  # Daemonize so it exits when the main program exits
     console_thread.start()
 
+    #welcome_message = Message('System', 'Welcome to General Chat', f'Welcome Users, to the general chat!')
+    #broadcast_message(welcome_message)
+
+    #nice_message = Message('System', 'Please Be Nice', 'Please be respectful and kind to everyone in the chat.')
+    #broadcast_message(nice_message)
+
     while True:
         # Accept incoming client connections
         client_socket, addr = server.accept()
@@ -231,17 +244,10 @@ def start_server():
         client_thread = threading.Thread(target=handle_client, args=(client_socket, addr))
         client_thread.start()
 
-def get_last_messages(request_data):
-    username = request_data.get('username')
-    group_id = request_data.get('group_id')  # Assume the group ID is available in the request
-
-    # Fetch the last two messages for the group from the database
-    messages = get_messages_from_group(group_id, limit=2)
-    
-    return json.dumps({
-        'status': 'success',
-        'messages': messages
-    })
+def get_last_messages():
+    # Return the last two messages from the global messages list
+    print("attempting to send user 1")
+    return [msg.to_dict() for msg in messages[-2:]]
 
 def get_messages_from_group(group_id, limit=2):
     # Here you would query your database or data structure to get the last `limit` messages for the given group.
