@@ -8,6 +8,8 @@ users = []  # List of currently connected users
 messages = []  # List of posted messages
 clients = []  # List of active client connections
 user_groups = {}  # Dictionary to map users to groups
+client_user_mapping = {}  # Map client sockets to usernames
+
 
 groups = [
     {'group_id': 1, 'group_name': 'Group1'},
@@ -52,11 +54,10 @@ user_groups = {
 
 # Function to handle client requests
 def handle_client(client_socket, client_address):
-    global users, messages, clients, user_groups
+    global users, messages, clients, user_groups, client_user_mapping
 
     # Add client socket to the list of active clients
     clients.append(client_socket)
-
     # Read the client message
     request = client_socket.recv(1024).decode('utf-8')
     if not request:
@@ -76,7 +77,8 @@ def handle_client(client_socket, client_address):
             username = client_socket.recv(1024).decode('utf-8')  # Prompt for a new username
         
         users.append(username)
-        user_groups[username] = []  # Initialize the user's group list
+        
+        client_user_mapping[client_socket] = username  # Map client socket to username
         print(f"User '{username}' has joined the the general chat.")
 
         
@@ -93,22 +95,33 @@ def handle_client(client_socket, client_address):
         client_socket.send(json.dumps({'status': 'success', 'message': f'Welcome, {username}!' }).encode('utf-8'))
 
     elif command == 'grouppost':
-        group = request_data.get('group')
+        group_id = request_data.get('group_id')
         sender = request_data.get('sender')
         subject = request_data.get('subject')
         body = request_data.get('body')
+        print(group_id, sender, subject, body)
         if not sender or not subject or not body:
             client_socket.send(json.dumps({'status': 'failure', 'message': 'Sender, subject, and body are required.'}).encode('utf-8'))
+            print("If: Server Ran Group Post")
         else:
-            new_message = Message(group, sender, subject, body)
-            messages.append(new_message)
-            print(f"Message posted by {sender}: '{subject}'")
+            print("Else: Server Ran Group Post")
+            #group = next((g for g in groups if g['group_id'] == group_id), None)
+            group = group_id
+            print(group)
+            print(user_groups.get(sender, []))
+            if not group or group not in user_groups.get(sender, []):
+                client_socket.send(json.dumps({'status': 'failure', 'message': f'You are not a member of the specified group.'}).encode('utf-8'))
+                print("failed")
+            else:
+                new_message = Message(sender, subject, body)
+                messages.append(new_message)
+                print(f"Message posted by {sender} in group '{group['group_name']}': '{subject}'")
 
-            # Broadcast the message to all connected clients
-            broadcast_message(new_message)
+                # Broadcast the message to the group
+                broadcast_message_group(new_message, group_id)
 
-            client_socket.send(json.dumps({'status': 'success', 'message': f'Message titled "{subject}" posted successfully!'}).encode('utf-8'))
-
+                client_socket.send(json.dumps({'status': 'success', 'message': f'Message titled "{subject}" posted successfully in group "{group["group_name"]}"!'}).encode('utf-8'))
+        print("Server Ran Group Post")
     elif command == 'post':
         sender = request_data.get('sender')
         subject = request_data.get('subject')
@@ -169,25 +182,26 @@ def handle_client(client_socket, client_address):
     
     elif command == 'groups':
         client_socket.send(json.dumps({'status': 'success', 'groups': groups}).encode('utf-8'))
-
+        
     elif command == 'join_group':
         username = request_data.get('username')
+        #username = client_user_mapping.get(client_socket)
         group_id = request_data.get('group_id')
-        group = None
+        group = next((g for g in groups if g['group_id'] == group_id), None)
 
-        if group_id:
-            group = next((g for g in groups if g['group_id'] == group_id), None)
-
-        if group:
+        if not username:
+            client_socket.send(json.dumps({'status': 'failure', 'message': 'You must join first before joining a group.'}).encode('utf-8'))
+        elif not group:
+            client_socket.send(json.dumps({'status': 'failure', 'message': 'Group not found.'}).encode('utf-8'))
+        else:
             if username not in user_groups:
                 user_groups[username] = []
             if group in user_groups[username]:
                 client_socket.send(json.dumps({'status': 'failure', 'message': f'User "{username}" is already in group "{group["group_name"]}".'}).encode('utf-8'))
             else:
                 user_groups[username].append(group)
-                client_socket.send(json.dumps({'status': 'success', 'message': f'Joined group "{group["group_name"]}" successfully!'}).encode('utf-8'))
-        else:
-            client_socket.send(json.dumps({'status': 'failure', 'message': 'Group not found.'}).encode('utf-8'))
+                print(f"User '{username}' joined group '{group['group_name']}'.")
+                client_socket.send(json.dumps({'status': 'success', 'message': f'You have joined group "{group["group_name"]}".'}).encode('utf-8'))
 
     elif command == 'message':
         group_id = request_data.get('group_id')
@@ -200,12 +214,13 @@ def handle_client(client_socket, client_address):
             print("Message Attempted")
         else:
             client_socket.send(json.dumps({'status': 'failure', 'message': f'Message with ID {message_id} not found in group "{group["group_name"]}".'}).encode('utf-8'))
+#finally:
+        # Remove client from the active list and username mapping when disconnecting
+    #if client_socket in client_user_mapping:
+    #    disconnected_user = client_user_mapping.pop(client_socket)
+    #    print(f"User '{disconnected_user}' has disconnected.")
+        
 
-
-
-    client_socket.close()
-    # Remove the client from the active clients list when they disconnect
-    clients.remove(client_socket)
 
 # Function to broadcast a message to all connected clients
 def broadcast_message(message):
@@ -218,10 +233,34 @@ def broadcast_message(message):
             # If sending the message fails (e.g., client disconnected), remove the client
             print("error")
 
+def broadcast_message_group(message, group_id):
+    global clients, user_groups
+    group_members = [user for user, groups in user_groups.items() if any(g['group_id'] == group_id for g in groups)]
+    print(group_members)
+    for client in clients:
+        try:
+            # Get the username of the client
+            client_username = get_client_username(client)
+            print("Client User", client_username)
+            # Send the message only if the client is a member of the group
+            if client_username in group_members:
+                print("USer Sending Message to", group_members)
+                client.send(json.dumps({'status': 'new_message', 'message': message.to_dict()}).encode('utf-8'))
+        except:
+            print(f"Error sending message to client: {client}")
+
+def get_client_username(client):
+    return client_user_mapping.get(client)
+
+
 # Function to handle server console commands
 def handle_server_console():
     while True:
-        command = input("Enter server command: ").strip().lower()
+        try:
+            command = input("Enter server command: ").strip().lower()
+        except EOFError:
+            print("EOFError: Exiting the server.")
+            break
 
         if command == "list_users":
             if users:

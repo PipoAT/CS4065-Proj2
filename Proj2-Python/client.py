@@ -42,7 +42,14 @@ def handle_commands():
         
         # %users command to get the list of users
         elif command == "%users":
-            send_request('users')
+            response = send_request('users')
+            users = json.loads(response).get('users', [])
+            if not users:
+                print("No users found.")
+            else:
+                print("Users in the group:")
+                for user in users:
+                    print(user)
         
         # %leave command to leave the group
         elif command == "%leave":
@@ -79,17 +86,23 @@ def handle_commands():
             join_group_by_id()
 
         elif command.startswith("%grouppost"):
-            parts = command.split(' ', 3)  # Split into 3 parts: group_id, subject, body
-            if len(parts) < 4:
-                print("Missing Parts -> Make While Later")
-            else:
-                group_id = parts[1]  # Assuming the first part is the group ID
-                subject = parts[2]  # The second part is the subject
-                body = parts[3]  # The third part is the body
+            while True:
+                parts = command.split(' ', 3)  # Split into 3 parts: group_id, subject, body
+                if len(parts) < 4:
+                    print("Missing parts. Please provide the group ID, subject, and body.")
+                    command = input("Enter the %grouppost command or type %back to cancel: ").strip()
+                    if command == "%back":
+                        print("Cancelled %grouppost command.")
+                        break
+                else:
+                    group_id = parts[1]  # Assuming the first part is the group ID
+                    subject = parts[2]  # The second part is the subject
+                    body = parts[3]  # The third part is the body
 
-                # Assuming 'post_to_group_by_id' is a function to handle posting a message to a group
-                post_to_group_by_id(group_id, subject, body)
-            print("Grouppost ran.")
+                    # Assuming 'post_to_group_by_id' is a function to handle posting a message to a group
+                    post_to_group_by_id(group_id, subject, body)
+                    print("Grouppost ran.")
+                    break
 
         elif command == "%groupusers":
             get_users_by_id()
@@ -134,7 +147,7 @@ def join_group_by_id():
         print(f"Failed to join group {group_id}: {response_data.get('error', response_data.get('message'))}")
 
 
-def post_to_group_by_id(group, subject, body):
+def post_to_group_by_id(group_id, subject, body):
     while not subject.strip() or not body.strip():
         if not subject.strip():
             subject = input("Please enter a title (subject) for your post: ").strip()
@@ -149,7 +162,7 @@ def post_to_group_by_id(group, subject, body):
             print("Body: The content of your post.\n")
     
     # Once both are provided, send the post request
-    send_request('grouppost', {'group': group, 'sender': username, 'subject': subject, 'body': body})
+    send_request('grouppost', {'group_id': group_id, 'sender': username, 'subject': subject, 'body': body})
 
 def get_users_by_id():
     response = send_request('groups')
@@ -180,7 +193,22 @@ def leave_group_by_id():
         
 
 def get_message_by_id():
-    send_request('groupmessage', {'message_id': message_id})
+    response = send_request('groups')
+    groups_list = json.loads(response).get('groups', [])
+    group_id = input("Enter the group ID: ")
+    group = next((g for g in groups_list if g['group_id'] == group_id or g['group_name'] == group_id), None)
+    message_id = input("Enter the message ID: ").strip()
+    if not message_id.isdigit():
+        print("Invalid message ID. Please provide a valid numeric ID.")
+        return
+
+    response = send_request('message', {'group_id': group, 'message_id': int(message_id)})
+    response_data = json.loads(response)
+    if response_data.get('status') == 'success':
+        message = response_data.get('message')
+        print(f"\nMessage ID: {message['id']}\nFrom: {message['sender']}\nSubject: {message['subject']}\nDate: {message['date']}\nBody: {message['body']}\n")
+    else:
+        print(f"Failed to retrieve message: {response_data.get('error', response_data.get('message'))}")
 
 def send_request(command, data=None, data2=None):
     # Create socket and send data
