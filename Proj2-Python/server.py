@@ -29,21 +29,22 @@ class Message:
         self.subject = subject
         self.body = body
 
+
     def to_dict(self):
         return {
             'message_id': self.message_id,
             'sender': self.sender,
             'date': self.date,
             'subject': self.subject,
-            'body': self.body
+            'body': self.body,
         }
     
 
 users = ['Alice', 'Bob', 'Charlie']
 messages = [
-    Message('Alice', 'Hello', 'Hello everyone!'),
-    Message('Bob', 'Hi', 'Hi Alice!'),
-    Message('Charlie', 'Greetings', 'Greetings to all!')
+    #Message('Alice', 'Hello', 'Hello everyone!'),
+    #Message('Bob', 'Hi', 'Hi Alice!'),
+    #Message('Charlie', 'Greetings', 'Greetings to all!')
 ]
 clients = []
 user_groups = {
@@ -155,7 +156,7 @@ def handle_client(client_socket, client_address):
                         broadcast_message_group(full_message.encode('utf-8'), group_id)
 
                         client_socket.send(json.dumps({'status': 'success', 'message': f'group message posted successfully!'}).encode('utf-8'))
-                        #client_socket.send(json.dumps({'status': 'success', 'message': f'group message posted successfully!'}).encode('utf-8'))
+                        client_socket.send(json.dumps({'status': 'success', 'message': f'group message posted successfully!'}).encode('utf-8'))
                 print("Server ran group post")
 
             elif command == 'post':
@@ -186,39 +187,50 @@ def handle_client(client_socket, client_address):
 
                     # Send a success response to the client
                     client_socket.send(json.dumps({'status': 'success', 'message': f'Message titled "{subject}" posted successfully!'}).encode('utf-8'))
+
             elif command == 'leave':
                 username = request_data.get('username')
                 if not username or username not in users:
                     client_socket.send(json.dumps({'status': 'failure', 'message': f'User "{username}" not found.'}).encode('utf-8'))
                 else:
                     users.remove(username)
-                    user_groups.pop(username, None)  # Remove the user from the user_groups dictionary
-                    client_user_mapping.pop(client_socket, None)  # Remove user from mapping
 
                     print(f"User '{username}' has left the chat.")
                     
                     # Broadcast that the user has left
-                    leave_message = Message('System', 'User Left', f'User "{username}" has left the chat.')
-                    broadcast_message(leave_message)
-
-                    client_socket.send(json.dumps({'status': 'success', 'message': f'{username} has left the chat.'}).encode('utf-8'))
+                    broadcast_message(f'{username} has left the chat room!\n'.encode('utf-8'))
+                    
+                    client_socket.send(f'User "{username}" has left the chat.'.encode('utf-8'))
+                    client_socket.send(json.dumps({'status': 'success', 'message': 'User has left group successfully!'}).encode('utf-8'))
 
             elif command == 'groupleave':
-                group_id = request_data.get('group_id')
+                group_id = request_data.get('group_name')
                 username = request_data.get('username')
-                if username not in user_groups:
-                    client_socket.send(json.dumps({'status': 'failure', 'message': f'User "{username}" not found in the group.'}).encode('utf-8'))
+                print(group_id)
+                if username not in users:
+                    client_socket.send(json.dumps({'status': 'failure', 'message': f'User "{username}" not found in the system.'}).encode('utf-8'))
                 else:
-                    group = next((g for g in groups if g['group_id'] == group_id), None)
-                    if group and group in user_groups.get(username, []):
-                        user_groups[username].remove(group)
-                        print(f"User '{username}' has left group '{group['group_name']}'.")
-                        # Broadcast that the user has left the group
-                        leave_message = Message('System', 'User Left Group', f'User "{username}" has left group "{group["group_name"]}".')
-                        broadcast_message(leave_message)
-                        client_socket.send(json.dumps({'status': 'success', 'message': f'{username} has left group "{group["group_name"]}".'}).encode('utf-8'))
+                    group = next((g for g in groups if g['group_name'] == group_id), None)
+                    print(group)
+                    if group:
+                        user_groups_list = user_groups.get(username, [])
+                        group_in_user_groups = next((ug for ug in user_groups_list if ug['group_name'] == group_id), None)
+                        
+                        if group_in_user_groups:
+                            user_groups[username].remove(group_in_user_groups)
+                            print(f"User '{username}' has left group '{group['group_name']}'.")
+                            
+                            # Broadcast that the user has left the group
+                            leave_message = Message('System', 'User Left Group', f'User "{username}" has left group "{group["group_name"]}".')
+                            numbers_only = ''.join([char for char in group_id if char.isdigit()])
+                            broadcast_message_group(leave_message, numbers_only)
+                            
+                            client_socket.send(f'User "{username}" has left group "{group["group_name"]}".'.encode('utf-8'))
+                            client_socket.send(json.dumps({'status': 'success', 'message': f'user has left group successfully!'}).encode('utf-8'))
+                        else:
+                            client_socket.send(json.dumps({'status': 'failure', 'message': f'User "{username}" is not in the specified group.'}).encode('utf-8'))
                     else:
-                        client_socket.send(json.dumps({'status': 'failure', 'message': f'User "{username}" is not in the specified group.'}).encode('utf-8'))
+                        client_socket.send(json.dumps({'status': 'failure', 'message': f'Group with ID "{group_id}" not found.'}).encode('utf-8'))
 
             elif command == 'users':
                 client_socket.send(f'Connect User:\n{users}'.encode('utf-8'))
@@ -227,13 +239,16 @@ def handle_client(client_socket, client_address):
 
             elif command == 'groupusers':
                 group_id = request_data.get('group_id')
-                group = next((g for g in groups if g['group_id'] == group_id), None)
+                group = next((g for g in groups if g['group_name'] == group_id), None)
+                print(group_id)
+                print(groups)
                 if group:
                     group_users = [user for user, user_groups_list in user_groups.items() if group in user_groups_list]
-                    client_socket.send(json.dumps({'status': 'success', 'users': group_users}).encode('utf-8'))
+                    client_socket.send(f'Connect Users In Group:\n {group_users}'.encode('utf-8'))
+                    
                 else:
                     client_socket.send(json.dumps({'status': 'failure', 'message': 'Group not found.'}).encode('utf-8'))
-            
+                client_socket.send(json.dumps({'status': 'success', 'message': f'user list posted successfully!'}).encode('utf-8'))
             elif command == 'groups':
                 if groups:
                     # Send a list of all available groups
@@ -283,9 +298,9 @@ def handle_client(client_socket, client_address):
             print(f"Error handling client request: {e}")
         finally:
             # Remove client from the active list and username mapping when disconnecting
-            if client_socket in client_user_mapping:
-                disconnected_user = client_user_mapping.pop(client_socket)
+            print("attempted final")
                 ##print(f"User '{disconnected_user}' has disconnected.")
+    
     if client_socket in clients:
         clients.remove(client_socket)
     client_socket.close()

@@ -34,6 +34,7 @@ def handle_commands():
         
         # %leave command to leave the group
         elif command == "%leave":
+            global username
             if not username:
                 print("You must join the group first using the %join command.")
                 return
@@ -82,7 +83,7 @@ def handle_commands():
 
                     # Assuming 'post_to_group_by_id' is a function to handle posting a message to a group
                     post_to_group_by_id(group_id, subject, body)
-                    print("Grouppost ran.")
+    
                     break
 
         elif command == "%groupusers":
@@ -159,30 +160,15 @@ def post_to_group_by_id(group_id, subject, body):
     send_request('grouppost', {'group_id': group_id, 'sender': username, 'subject': subject, 'body': body})
 
 def get_users_by_id():
-    response = send_request('groups')
-    groups_list = json.loads(response).get('groups', [])
+    send_request('groups')
     group_id = input("Enter the group Name: ")
-    group = next((g for g in groups_list if g['group_id'] == group_id or g['group_name'] == group_id), None)
-    response = send_request('groupusers', {'group_id': group['group_id']})
-    users = json.loads(response).get('users', [])
-    if not users:
-        print(f"No users found in group {group_id}.")
-    else:
-        print(f"Users in group {group_id}:")
-        for user in users:
-            print(user)
+    send_request('groupusers', {'group_id': group_id})
+
 
 def leave_group_by_id():
     response = send_request('groups')
     group_id = input("Enter the group Name: ")
-    username = input("Enter your username: ")
-    groups_list = json.loads(response).get('groups', [])
-    group = next((g for g in groups_list if g['group_id'] == group_id or g['group_name'] == group_id), None)
-    if not group:
-        print(f"Group {group_id} not found.")
-        return
-
-    response = send_request('groupleave', {'group_id': group['group_id'], 'username': username})
+    send_request('groupleave', {'group_name': group_id, 'username': username})
     print( f"Successfully left group {group_id}")
         
 
