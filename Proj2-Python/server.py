@@ -300,6 +300,7 @@ def handle_client(client_socket, client_address):
             # Remove client from the active list and username mapping when disconnecting
             print("attempted final")
                 ##print(f"User '{disconnected_user}' has disconnected.")
+
     
     if client_socket in clients:
         clients.remove(client_socket)
@@ -329,6 +330,16 @@ def get_client_username(client):
     print(client_user_mapping)
     return client_user_mapping.get(client)
 
+
+def broadcast_message_group(message):
+    global clients, messages
+    messages.append(message)  # Append the message to the messages list
+    for client in clients:
+        try:
+            client.send(json.dumps({'status': 'new_message', 'message': message.to_dict()}).encode('utf-8'))
+        except:
+            # If sending the message fails (e.g., client disconnected), remove the client
+            print("error")
 
 # Function to handle server console commands
 def handle_server_console():

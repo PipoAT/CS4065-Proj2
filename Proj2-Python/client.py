@@ -30,8 +30,7 @@ def handle_commands():
         # %users command to get the list of users
         elif command == "%users":
             send_request('users')
-
-        
+            
         # %leave command to leave the group
         elif command == "%leave":
             global username
@@ -83,7 +82,7 @@ def handle_commands():
 
                     # Assuming 'post_to_group_by_id' is a function to handle posting a message to a group
                     post_to_group_by_id(group_id, subject, body)
-    
+
                     break
 
         elif command == "%groupusers":
