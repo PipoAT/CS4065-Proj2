@@ -5,9 +5,8 @@ import tkinter as tk
 from tkinter import scrolledtext, messagebox, simpledialog
 
 # Global variables
-server_url = 'localhost'  # Default server address
-server_port = 5050       # Default server port
 username = ''  # Default empty username
+client_socket = None  # Socket that will be used for communication
 
 # Function to handle user input
 def handle_commands():
@@ -16,23 +15,11 @@ def handle_commands():
 
         # %connect command to set server address and port
         if command.startswith("%connect"):
-            try:
-                _, address, port = command.split()
-                global server_url, server_port
-                server_url = address
-                server_port = int(port)
-                print(f"Connected to server at {server_url}:{server_port}")
-            except ValueError:
-                print("Invalid connect command. Use: %connect <address> <port>")
+            connect(command)
         
         # %join command to join the message board
         elif command == "%join":
-            global username
-            if not username:
-                username = input("Enter your username: ").strip()
-            
-            # Continuously prompt for a new username if the one entered is taken
-            send_request('join', {'username': username})
+            join_group()
         
         # %post command to post a message
         elif command.startswith("%post"):
@@ -42,17 +29,11 @@ def handle_commands():
         
         # %users command to get the list of users
         elif command == "%users":
-            response = send_request('users')
-            users = json.loads(response).get('users', [])
-            if not users:
-                print("No users found.")
-            else:
-                print("Users in the group:")
-                for user in users:
-                    print(user)
-        
+            send_request('users')
+            
         # %leave command to leave the group
         elif command == "%leave":
+            global username
             if not username:
                 print("You must join the group first using the %join command.")
                 return
@@ -62,12 +43,15 @@ def handle_commands():
         
         # %message command to get a specific message by ID
         elif command.startswith("%message"):
+            print("Message ID System Is Currently Down.  Please Try Again Later.")
+            '''
             try:
                 _, message_id = command.split()
                 message_id = int(message_id)  # Ensure it's an integer
                 get_message(message_id)
             except ValueError:
                 print("Invalid message ID. Please provide a valid numeric ID.")
+            '''
         # %exit command to exit the client
         elif command == "%exit":
             if username:
@@ -77,10 +61,7 @@ def handle_commands():
             break
 
         elif command == "%groups":
-            groups = send_request('groups')
-            groups_list = json.loads(groups).get('groups', [])
-            for group in groups_list:
-                print(f"Group ID: {group['group_id']}, Group Name: {group['group_name']}")
+            send_request('groups')
 
         elif command == "%groupjoin":
             join_group_by_id()
@@ -101,7 +82,7 @@ def handle_commands():
 
                     # Assuming 'post_to_group_by_id' is a function to handle posting a message to a group
                     post_to_group_by_id(group_id, subject, body)
-                    print("Grouppost ran.")
+
                     break
 
         elif command == "%groupusers":
@@ -116,6 +97,34 @@ def handle_commands():
         # Invalid command handling
         else:
             print("Invalid command. Available commands: %connect, %join, %post, %users, %leave, %message, %exit, %groups, %groupjoin, %grouppost, %groupusers, %groupleave, %groupmessage.")
+    print("Handle Failed")
+def join_group():
+    global username
+
+    # If the username is not set, prompt the user for one
+    if not username:
+        username = input("Enter your username: ").strip()
+
+    while True:
+        # Send the join request to the server
+        response = send_request('join', {'username': username})
+        if response:
+            try:
+                response_data = json.loads(response)
+                if response_data.get('status') == 'success':
+                    print(f"Successfully joined the group as {username}.")
+                    break  # Exit the loop if successfully joined
+                else:
+                    error_message = response_data.get('error', 'Unknown error')
+                    print(f"Failed to join: {error_message}")
+                    # Ask for a new username if the current one is taken or invalid
+                    username = input("Please choose a different username: ").strip()
+            except json.JSONDecodeError:
+                print("Error: Unable to parse server response.")
+                break  # Exit in case of a malformed response from the server
+        else:
+            print("No response from server. Make sure you are connected.")
+            break
 
 def join_group_by_id():
     global username
@@ -126,28 +135,13 @@ def join_group_by_id():
         username = input("Enter your username: ").strip()
 
     groups = send_request('groups')
-    groups_list = json.loads(groups).get('groups', [])
-    print("Available groups:")
-    for group in groups_list:
-        print(f"Group ID: {group['group_id']}, Group Name: {group['group_name']}    ")
-
+ 
     group_id = input("Enter the group name: ")
-    group = next((g for g in groups_list if g['group_id'] == group_id or g['group_name'] == group_id), None)
-    
-    if not group:
-        print(f"Group {group_id} not found.")
-        return
-
     # Use the global username for joining the group
-    response = send_request('join_group', {'group_id': group['group_id'], 'username': username})
-    response_data = json.loads(response)
-    if response_data.get('status') == 'success':
-        print(f"Successfully joined group {group_id}")
-    else:
-        print(f"Failed to join group {group_id}: {response_data.get('error', response_data.get('message'))}")
+    send_request('join_group', {'group_id': group_id, 'username': username})
 
 
-def post_to_group_by_id(group, subject, body):
+def post_to_group_by_id(group_id, subject, body):
     while not subject.strip() or not body.strip():
         if not subject.strip():
             subject = input("Please enter a title (subject) for your post: ").strip()
@@ -162,33 +156,18 @@ def post_to_group_by_id(group, subject, body):
             print("Body: The content of your post.\n")
     
     # Once both are provided, send the post request
-    send_request('grouppost', {'group': group, 'sender': username, 'subject': subject, 'body': body})
+    send_request('grouppost', {'group_id': group_id, 'sender': username, 'subject': subject, 'body': body})
 
 def get_users_by_id():
-    response = send_request('groups')
-    groups_list = json.loads(response).get('groups', [])
+    send_request('groups')
     group_id = input("Enter the group Name: ")
-    group = next((g for g in groups_list if g['group_id'] == group_id or g['group_name'] == group_id), None)
-    response = send_request('groupusers', {'group_id': group['group_id']})
-    users = json.loads(response).get('users', [])
-    if not users:
-        print(f"No users found in group {group_id}.")
-    else:
-        print(f"Users in group {group_id}:")
-        for user in users:
-            print(user)
+    send_request('groupusers', {'group_id': group_id})
+
 
 def leave_group_by_id():
     response = send_request('groups')
     group_id = input("Enter the group Name: ")
-    username = input("Enter your username: ")
-    groups_list = json.loads(response).get('groups', [])
-    group = next((g for g in groups_list if g['group_id'] == group_id or g['group_name'] == group_id), None)
-    if not group:
-        print(f"Group {group_id} not found.")
-        return
-
-    response = send_request('groupleave', {'group_id': group['group_id'], 'username': username})
+    send_request('groupleave', {'group_name': group_id, 'username': username})
     print( f"Successfully left group {group_id}")
         
 
@@ -211,29 +190,21 @@ def get_message_by_id():
         print(f"Failed to retrieve message: {response_data.get('error', response_data.get('message'))}")
 
 def send_request(command, data=None, data2=None):
-    # Create socket and send data
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-        client_socket.settimeout(5)  # Set a timeout of 5 seconds
-        try:
-            client_socket.connect((server_url, server_port))
-            
-            request_data = {'command': command}
-            if data:
-                request_data.update(data)
-
-            if data2:
-                request_data.update(data2)
-            
-            client_socket.send(json.dumps(request_data).encode('utf-8'))
-            
-            response = client_socket.recv(1024).decode('utf-8')
-            return response
-        except socket.timeout:
-            print("Request timed out. Please try again.")
-            return json.dumps({'status': 'error', 'error': 'Request timed out'})
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            return json.dumps({'status': 'error', 'error': str(e)})
+    if not client_socket:
+            print("Not connected to the server. Use %connect to connect first.")
+            return None
+        
+    try:
+        request_data = {'command': command}
+        if data:
+            request_data.update(data)
+            print(request_data.update(data))
+        client_socket.send(json.dumps(request_data).encode('utf-8'))
+        response = client_socket.recv(1024).decode('utf-8')
+        return response
+    except Exception as e:
+        print(f"Error: {e}")
+        return json.dumps({'status': 'error', 'error': str(e)})
 
 def post_message(subject, body):
     if not username:
@@ -241,35 +212,70 @@ def post_message(subject, body):
         return
 
     send_request('post', {'sender': username, 'subject': subject, 'body': body})
-    print(subject, body)    
+
 
 def get_message(message_id):
     send_request('message', {'message_id': message_id})
 
 # Function to handle incoming messages
 def listen_for_messages():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-        client_socket.connect((server_url, server_port))
+    """Listen for incoming messages in a separate thread."""
+    while True:
+        response = client_socket.recv(1024).decode('utf-8')
+        if response:
+            print(f"New Message: \n{response}")
 
-        while True:
-            response = client_socket.recv(1024).decode('utf-8')
-            if not response:
-                break
-
-            response_data = json.loads(response)
-            if response_data.get('status') == 'new_message':
-                message = response_data.get('message')
-                print(f"\nNew Message:\nFrom: {message['sender']}\nSubject: {message['subject']}\nDate: {message['date']}\nBody: {message['body']}\n")
-            else:
-                print("Response:", response_data)
-
-# Start the client
-if __name__ == '__main__':
-    # Start a thread to listen for incoming messages
-    listen_thread = threading.Thread(target=listen_for_messages)
-    listen_thread.daemon = True
+# Function to handle incoming group messages
+'''
+def listen_for_group_messages():
+    """Listen for incoming messages in a separate thread."""
+    while True:
+        response = client_socket.recv(1024).decode('utf-8')
+        if response:
+            print(f"New Message: {response}")
+'''
+# Function to start listening for messages
+def start_listening_for_messages():
+    listen_thread = threading.Thread(target=listen_for_messages, daemon=True)
     listen_thread.start()
 
+# Function to start listening for group messages
+'''
+def start_listening_for_group_messages():
+    listen_thread = threading.Thread(target=listen_for_group_messages, daemon=True)
+    listen_thread.start()
+'''
+
+def connect(command):
+    global client_socket
+    try:
+        _, address, port = command.split()
+        port = int(port)
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.connect((address, port))
+        print(f"Connected to server at {address}:{port}")
+    except ValueError:
+        print("Invalid connect command. Use: %connect <address> <port>")
+    except Exception as e:
+        print(f"Error connecting to server: {e}")
+# Start the client
+if __name__ == '__main__':
+    print("Welcome! Use the %connect [address] [port] command to connect to the server.")
+    while True:
+        command = input("Enter a command: ").strip().lower()
+        if command.startswith("%connect"):
+            connect(command)
+            if client_socket:
+                start_listening_for_messages()
+                handle_commands()
+                break
+        else:
+            print("Invalid input, please use %connect <address> <port> to connect.")
+#    start_listening_for_messages()           # Start listening for individual messages
+#    start_listening_for_group_messages()     # Start listening for group messages
+
+
+'''
     class ChatClientGUI:
         def __init__(self, root):
             self.root = root
@@ -501,14 +507,5 @@ if __name__ == '__main__':
         command = input().strip().lower()
         if command == "cli":
             handle_commands()
-        elif command == "gui": 
-            root = tk.Tk()
-            gui = ChatClientGUI(root)
-
-            listen_thread = threading.Thread(target=gui.gui_listen_for_messages)
-            listen_thread.daemon = True
-            listen_thread.start()
-
-            root.mainloop()
-        else:
             print("Please use a valid command: cli | gui")
+'''

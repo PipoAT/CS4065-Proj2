@@ -106,3 +106,20 @@ The message ID system is also non-functional due to a similar issue. Although th
 Issues that we encountered included ensuring that user errors were handled properly as certain actions (i.e. typing in the wrong command, not providing enough info) could have easily cause the program to crash or freeze.
 
 Also, we had encountered issues with the client code not being able to read the data from the server side code properly.
+
+### Issues With The Code As Is
+The current state of the code contains a mix of known bugs and incomplete features, which ideally will be addressed in future updates:
+
+- Dead Code: There are significant sections of dead code from earlier versions that have persisted into the current version.
+
+- Debug Code: A substantial amount of debug code remains on both the client and server sides. This may make the output appear cluttered or difficult to interpret if you are not familiar with the intended structure.
+
+- User Safety: The code currently lacks sufficient safeguards against misuse of commands, which can lead to potential timeouts or complete crashes in certain scenarios. While there are some safeguards in place, additional measures are needed to fully bulletproof the system.
+
+- Unfinished Code: There are elements of the code that are nearly implemented but not fully functional, such as the display of the last two messages and some notification features.
+
+- User Timeouts: There is a known bug where deviating from the approved use cases can cause user timeouts. Although users can rejoin and the server file remains stable, it may require users to create a new instance.
+
+- Lack of Comments: The code is currently missing essential comments, which are crucial for anyone unfamiliar with its functionality to understand its operation.
+
+- Disabled GUI: The GUI element of this project is disabled in this version.
